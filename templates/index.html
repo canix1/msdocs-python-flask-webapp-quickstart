@@ -1,30 +1,661 @@
-<!doctype html>
-<head>
-    <title>Hello Azure - Python Quickstart</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap/css/bootstrap.min.css') }}">
-    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
-</head>
+<!DOCTYPE html>
 <html>
-   <body>
-     <main>
-        <div class="px-4 py-3 my-2 text-center">
-            <img class="d-block mx-auto mb-4" src="{{ url_for('static', filename='images/azure-icon.svg') }}" alt="Azure Logo" width="192" height="192"/>
-            <!-- <img  src="/docs/5.1/assets/brand/bootstrap-logo.svg" alt="" width="72" height="57"> -->
-            <h1 class="display-6 fw-bold text-primary">Welcome to Azure</h1>            
-          </div>
-        <form method="post" action="{{url_for('hello')}}">
-            <div class="col-md-6 mx-auto text-center">
-                <label for="name" class="form-label fw-bold fs-5">Could you please tell me your name?</label>
+<head>
+    <title>CLOUD X-RAY</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
 
-                <!-- <p class="lead mb-2">Could you please tell me your name?</p> -->
-                <div class="d-grid gap-2 d-sm-flex justify-content-sm-center align-items-center my-1">
-                    <input type="text" class="form-control" id="name" name="name" style="max-width: 256px;">
-                  </div>            
-                <div class="d-grid gap-2 d-sm-flex justify-content-sm-center my-2">
-                  <button type="submit" class="btn btn-primary btn-lg px-4 gap-3">Say Hello</button>
-                </div>            
-            </div>
-        </form>
-     </main>      
-   </body>
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 10px;
+            background-color: #162447;
+            border-radius: 8px;
+        }
+
+        .logo {
+            width: 90px;
+            height: 90px;
+            object-fit: contain; /* Detta säkerställer att bilden behåller sina proportioner */
+        }
+
+        .title {
+            color: #4ecca3;
+            font-size: 24px;
+            margin: 0;
+        }
+
+        .search-container {
+            background-color: #162447;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #4ecca3;
+            background-color: #1a1a2e;
+            color: #e6e6e6;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #45b08c;
+            box-shadow: 0 0 5px rgba(78, 204, 163, 0.5);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #162447;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th {
+            background-color: #1f4068;
+            color: #4ecca3;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #233861;
+        }
+
+        tr:hover {
+            background-color: #233861;
+        }
+
+        /* Pulserande animering för sökrutan */
+        @keyframes glow {
+            0% {
+                box-shadow: 0 0 5px rgba(78, 204, 163, 0.2);
+            }
+            50% {
+                box-shadow: 0 0 20px rgba(78, 204, 163, 0.4);
+            }
+            100% {
+                box-shadow: 0 0 5px rgba(78, 204, 163, 0.2);
+            }
+        }
+
+        .search-box:focus {
+            animation: glow 2s infinite;
+        }
+
+        th {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+
+        th:hover {
+            background-color: #2a4d8f;
+        }
+
+        th:after {
+            content: '↕';
+            position: absolute;
+            right: 8px;
+            opacity: 0.5;
+        }
+
+        th.sort-asc:after {
+            content: '↑';
+            opacity: 1;
+        }
+
+        th.sort-desc:after {
+            content: '↓';
+            opacity: 1;
+        }
+
+        .filters-container {
+        background-color: #162447;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .module-select {
+            width: 100%;
+            padding: 10px;
+            background-color: #1a1a2e;
+            color: #e6e6e6;
+            border: 2px solid #4ecca3;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+
+        .filter-label {
+            display: block;
+            margin-bottom: 5px;
+            color: #4ecca3;
+            font-weight: 500;
+        }
+
+        .multiselect-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .module-checkbox {
+            display: flex;
+            align-items: center;
+            background-color: #1a1a2e;
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #233861;
+        }
+
+        .module-checkbox input[type="checkbox"] {
+            margin-right: 8px;
+        }
+
+        .module-checkbox:hover {
+            background-color: #233861;
+        }
+
+        body {
+            background-color: #1a1a2e;
+            color: #e6e6e6;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 10px;
+            background-color: #162447;
+            border-radius: 8px;
+        }
+
+
+        .stats-bar {
+            background-color: #162447;
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stats {
+            color: #4ecca3;
+        }
+
+        .export-btn {
+            background-color: #4ecca3;
+            color: #1a1a2e;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        .export-btn:hover {
+            background-color: #45b08c;
+        }
+
+        .search-container {
+            background-color: #162447;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-help {
+            font-size: 0.9em;
+            color: #4ecca3;
+            margin-top: 8px;
+            padding: 8px;
+            background-color: #1a1a2e;
+            border-radius: 4px;
+        }
+
+        .filters-container {
+            background-color: #162447;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .filter-section {
+            background-color: #1a1a2e;
+            padding: 15px;
+            border-radius: 4px;
+        }
+
+        .filter-label {
+            display: block;
+            margin-bottom: 10px;
+            color: #4ecca3;
+            font-weight: 500;
+        }
+
+        .multiselect-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .module-checkbox {
+            display: flex;
+            align-items: center;
+            background-color: #233861;
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #4ecca3;
+            transition: all 0.3s;
+        }
+
+        .module-checkbox:hover {
+            background-color: #2a4d8f;
+        }
+
+        .module-checkbox input[type="checkbox"] {
+            margin-right: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .filters-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-bar {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+
+        /* Tidigare table styles behålls... */
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 class="title">CLOUD X-RAY</h1>
+        <img src="{{ url_for('static', filename='cloudxray.webp') }}" alt="CloudXRay Logo" class="logo">
+    </div>
+
+    <div class="stats-bar">
+        <div class="stats">
+            Showing <span id="visibleRows">0</span> of <span id="totalRows">0</span> entries
+        </div>
+        <button id="exportBtn" class="export-btn">Export to CSV</button>
+    </div>
+
+    <div class="search-container">
+        <input type="text" id="searchBox" class="search-box" placeholder="Search across all columns...">
+        <div class="search-help">
+            Advanced search: Use quotes for exact match ("exact phrase"), AND/OR for multiple terms, 
+            -term to exclude. Example: "owner" AND teams -chat
+        </div>
+    </div>
+
+    <div class="filters-container">
+        <div class="filter-section">
+            <label class="filter-label">Module Types:</label>
+            <div id="moduleFilters" class="multiselect-container"></div>
+        </div>
+        <div class="filter-section">
+            <label class="filter-label">Permissions:</label>
+            <div id="permissionFilters" class="multiselect-container"></div>
+        </div>
+    </div>
+
+    <div id="results">
+        <table id="dataTable">
+            <thead><tr></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script>
+
+        const searchBox = document.getElementById('searchBox');
+        const table = document.getElementById('dataTable');
+        const moduleFilters = document.getElementById('moduleFilters');
+        let currentData = [];
+        let allData = [];
+        let currentSort = {
+            column: null,
+            direction: 'asc'
+        };
+    
+        const permissionFilters = document.getElementById('permissionFilters');
+        const exportBtn = document.getElementById('exportBtn');
+        const visibleRowsSpan = document.getElementById('visibleRows');
+        const totalRowsSpan = document.getElementById('totalRows');
+
+        const columnMapping = {
+            'Identity_ObjectID': 'Identity ID',
+            'Module': 'Module Type',
+            'Backup_DateTime': 'Backup Time',
+            'Target_Resource': 'Resource ID',
+            'Resource_FriendlyName': 'Resource Name',
+            'Permission_Name': 'Permission',
+            'Permission_Description': 'Description'
+        };
+    
+        // Funktion för att få unika modultyper
+        function getUniqueModules(data) {
+            return [...new Set(data.map(item => item.Module))].sort();
+        }
+    
+        // Funktion för att skapa checkboxar
+        function createModuleFilters(modules) {
+            moduleFilters.innerHTML = modules.map(module => `
+                <label class="module-checkbox">
+                    <input type="checkbox" value="${module}" checked>
+                    ${module}
+                </label>
+            `).join('');
+    
+            moduleFilters.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.addEventListener('change', filterData);
+            });
+        }
+    
+        // Uppdaterad filterData funktion
+        function filterData() {
+            const searchText = searchBox.value.toLowerCase();
+            const selectedModules = Array.from(moduleFilters.querySelectorAll('input[type="checkbox"]:checked'))
+                .map(cb => cb.value);
+    
+            // Kontrollera om några moduler är valda
+            if (selectedModules.length === 0) {
+                // Om inga moduler är valda, rensa tabellen
+                table.querySelector('tbody').innerHTML = '';
+                return;
+            }
+    
+            const filteredData = allData.filter(item => {
+                const matchesSearch = Object.values(item).some(value => 
+                    String(value).toLowerCase().includes(searchText)
+                );
+                const matchesModule = selectedModules.includes(item.Module);
+                return matchesSearch && matchesModule;
+            });
+    
+            if (currentSort.column) {
+                updateTable(sortData(filteredData, currentSort.column, currentSort.direction));
+            } else {
+                updateTable(filteredData);
+            }
+        }
+    
+        function sortData(data, column, direction) {
+            return [...data].sort((a, b) => {
+                let valueA = a[column];
+                let valueB = b[column];
+    
+                if (!isNaN(valueA) && !isNaN(valueB)) {
+                    valueA = Number(valueA);
+                    valueB = Number(valueB);
+                }
+    
+                if (direction === 'asc') {
+                    return valueA > valueB ? 1 : valueA < valueB ? -1 : 0;
+                } else {
+                    return valueA < valueB ? 1 : valueA > valueB ? -1 : 0;
+                }
+            });
+        }
+    
+        function updateTable(data) {
+            currentData = data;
+            
+            if (data.length > 0) {
+                const headers = Object.keys(data[0]);
+                
+                table.querySelector('thead tr').innerHTML = headers.map(h => {
+                    const sortClass = currentSort.column === h 
+                        ? ` class="sort-${currentSort.direction}"` 
+                        : '';
+                    return `<th${sortClass} data-column="${h}">${columnMapping[h] || h}</th>`;
+                }).join('');
+    
+                table.querySelector('tbody').innerHTML = data.map(row => 
+                    `<tr>${headers.map(h => `<td>${row[h]}</td>`).join('')}</tr>`
+                ).join('');
+            } else {
+                // Rensa tbody men behåll thead
+                table.querySelector('tbody').innerHTML = '';
+            }
+        }
+    
+        // Händelselyssnare för sökning
+        searchBox.addEventListener('input', filterData);
+    
+        // Initial datahämtning
+        async function initialLoad() {
+            const response = await fetch(`/search?query=`);
+            allData = await response.json();
+            currentData = allData;
+            
+            if (allData.length > 0) {
+                const uniqueModules = getUniqueModules(allData);
+                createModuleFilters(uniqueModules);
+                updateTable(allData);
+            }
+        }
+    
+        // Sorteringshantering
+        table.querySelector('thead').addEventListener('click', (e) => {
+            const th = e.target.closest('th');
+            if (!th) return;
+    
+            const column = th.dataset.column;
+            let direction = 'asc';
+    
+            if (currentSort.column === column) {
+                direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            }
+    
+            currentSort = { column, direction };
+            filterData(); // Använd filterData istället för att sortera direkt
+        });
+    
+        // Starta initial laddning
+        initialLoad();
+
+        // Uppdaterad söklogik för avancerad sökning
+        function parseSearchQuery(query) {
+            const terms = [];
+            let currentTerm = '';
+            let inQuotes = false;
+
+            query.split('').forEach(char => {
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ' ' && !inQuotes) {
+                    if (currentTerm) terms.push(currentTerm);
+                    currentTerm = '';
+                } else {
+                    currentTerm += char;
+                }
+            });
+            if (currentTerm) terms.push(currentTerm);
+
+            return terms.map(term => {
+                const isExclude = term.startsWith('-');
+                const isAnd = term.toUpperCase() === 'AND';
+                const isOr = term.toUpperCase() === 'OR';
+                return {
+                    term: isExclude ? term.slice(1) : term,
+                    isExclude,
+                    isOperator: isAnd || isOr,
+                    operator: isAnd ? 'AND' : isOr ? 'OR' : null
+                };
+            });
+        }
+
+        function matchesSearchTerms(item, parsedTerms) {
+            let result = true;
+            let currentOperator = 'AND';
+
+            parsedTerms.forEach((termObj, index) => {
+                if (termObj.isOperator) {
+                    currentOperator = termObj.operator;
+                    return;
+                }
+
+                const itemStr = Object.values(item).join(' ').toLowerCase();
+                const matches = itemStr.includes(termObj.term.toLowerCase());
+                
+                if (termObj.isExclude) {
+                    if (currentOperator === 'AND') result = result && !matches;
+                    else result = result || !matches;
+                } else {
+                    if (currentOperator === 'AND') result = result && matches;
+                    else result = result || matches;
+                }
+            });
+
+            return result;
+        }
+
+        // Uppdaterad filterData funktion
+        function filterData() {
+            const searchTerms = parseSearchQuery(searchBox.value);
+            const selectedModules = Array.from(moduleFilters.querySelectorAll('input[type="checkbox"]:checked'))
+                .map(cb => cb.value);
+            const selectedPermissions = Array.from(permissionFilters.querySelectorAll('input[type="checkbox"]:checked'))
+                .map(cb => cb.value);
+
+            if (selectedModules.length === 0 || selectedPermissions.length === 0) {
+                updateTable([]);
+                return;
+            }
+
+            const filteredData = allData.filter(item => {
+                const matchesModules = selectedModules.includes(item.Module);
+                const matchesPermissions = selectedPermissions.includes(item.Permission_Name);
+                const matchesSearch = searchTerms.length === 0 || matchesSearchTerms(item, searchTerms);
+                return matchesModules && matchesPermissions && matchesSearch;
+            });
+
+            if (currentSort.column) {
+                updateTable(sortData(filteredData, currentSort.column, currentSort.direction));
+            } else {
+                updateTable(filteredData);
+            }
+        }
+
+        // Funktion för att exportera till CSV
+        function exportToCSV() {
+            if (currentData.length === 0) return;
+
+            const headers = Object.keys(currentData[0]);
+            const csvContent = [
+                headers.join(','),
+                ...currentData.map(row => 
+                    headers.map(header => {
+                        const cell = row[header].toString();
+                        return cell.includes(',') ? `"${cell}"` : cell;
+                    }).join(',')
+                )
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'teams_permissions_export.csv';
+            link.click();
+        }
+
+        // Uppdaterad updateTable funktion
+        function updateTable(data) {
+            currentData = data;
+            visibleRowsSpan.textContent = data.length;
+            totalRowsSpan.textContent = allData.length;
+            
+            if (data.length > 0) {
+                const headers = Object.keys(data[0]);
+                
+                table.querySelector('thead tr').innerHTML = headers.map(h => {
+                    const sortClass = currentSort.column === h 
+                        ? ` class="sort-${currentSort.direction}"` 
+                        : '';
+                    return `<th${sortClass} data-column="${h}">${columnMapping[h] || h}</th>`;
+                }).join('');
+
+                table.querySelector('tbody').innerHTML = data.map(row => 
+                    `<tr>${headers.map(h => `<td>${row[h]}</td>`).join('')}</tr>`
+                ).join('');
+            } else {
+                table.querySelector('tbody').innerHTML = '';
+            }
+        }
+
+        // Uppdaterad createFilters funktion
+        function createFilters() {
+            const uniqueModules = getUniqueModules(allData);
+            const uniquePermissions = [...new Set(allData.map(item => item.Permission_Name))].sort();
+
+            moduleFilters.innerHTML = uniqueModules.map(module => `
+                <label class="module-checkbox">
+                    <input type="checkbox" value="${module}" checked>
+                    ${module}
+                </label>
+            `).join('');
+
+            permissionFilters.innerHTML = uniquePermissions.map(permission => `
+                <label class="module-checkbox">
+                    <input type="checkbox" value="${permission}" checked>
+                    ${permission}
+                </label>
+            `).join('');
+
+            moduleFilters.querySelectorAll('input[type="checkbox"]').forEach(cb => 
+                cb.addEventListener('change', filterData));
+            permissionFilters.querySelectorAll('input[type="checkbox"]').forEach(cb => 
+                cb.addEventListener('change', filterData));
+        }
+
+        // Event listeners
+        searchBox.addEventListener('input', filterData);
+        exportBtn.addEventListener('click', exportToCSV);
+
+        // Uppdaterad initialLoad
+        async function initialLoad() {
+            const response = await fetch(`/search?query=`);
+            allData = await response.json();
+            currentData = allData;
+            
+            if (allData.length > 0) {
+                createFilters();
+                updateTable(allData);
+            }
+        }
+
+        // Starta applikationen
+        initialLoad();
+    </script>
+</body>
 </html>

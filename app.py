@@ -3,6 +3,8 @@ import os
 from flask import (Flask, redirect, render_template, request,
                    send_from_directory, url_for)
 
+import pandas as pd
+
 app = Flask(__name__)
 
 
@@ -16,16 +18,12 @@ def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'),
                                'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
-@app.route('/hello', methods=['POST'])
-def hello():
-   name = request.form.get('name')
-
-   if name:
-       print('Request for hello page received with name=%s' % name)
-       return render_template('hello.html', name = name)
-   else:
-       print('Request for hello page received with no name or blank name -- redirecting')
-       return redirect(url_for('index'))
+@app.route('/search')
+def search():
+    query = request.args.get('query', '').lower()
+    # Sök i alla kolumner
+    filtered_df = df[df.astype(str).apply(lambda x: x.str.contains(query, case=False)).any(axis=1)]
+    return jsonify(filtered_df.to_dict('records'))
 
 
 if __name__ == '__main__':
