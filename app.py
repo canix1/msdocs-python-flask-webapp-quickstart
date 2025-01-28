@@ -1,12 +1,13 @@
 import os
 
-from flask import (Flask, redirect, render_template, request,
-                   send_from_directory, url_for)
+from flask import (Flask, render_template, request, jsonify, url_for)
 
 import pandas as pd
 
 app = Flask(__name__)
 
+# Läs in CSV-filen
+df = pd.read_csv('teams_permissions.csv')
 
 @app.route('/')
 def index():
