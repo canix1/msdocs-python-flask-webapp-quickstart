@@ -1,0 +1,4 @@
+{
+    "appService.defaultWebAppToDeploy": "/subscriptions/c65f36ce-2049-4560-8f24-30c2c6a54aac/resourceGroups/CloudXRAY/providers/Microsoft.Web/sites/CloudXRAY",
+    "appService.deploySubpath": "."
+}

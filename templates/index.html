@@ -264,24 +264,6 @@
             gap: 8px;
         }
 
-        .module-checkbox {
-            display: flex;
-            align-items: center;
-            background-color: #233861;
-            padding: 8px 12px;
-            border-radius: 4px;
-            border: 1px solid #4ecca3;
-            transition: all 0.3s;
-        }
-
-        .module-checkbox:hover {
-            background-color: #2a4d8f;
-        }
-
-        .module-checkbox input[type="checkbox"] {
-            margin-right: 8px;
-        }
-
         @media (max-width: 768px) {
             .filters-container {
                 grid-template-columns: 1fr;
@@ -319,9 +301,13 @@
 
     <div class="filters-container">
         <div class="filter-section">
-            <label class="filter-label">Module Types:</label>
+            <label class="filter-label">Module:</label>
             <div id="moduleFilters" class="multiselect-container"></div>
         </div>
+        <div class="filter-section">
+            <label class="filter-label">Type:</label>
+            <div id="typeFilters" class="multiselect-container"></div>
+        </div>        
         <div class="filter-section">
             <label class="filter-label">Permissions:</label>
             <div id="permissionFilters" class="multiselect-container"></div>
@@ -340,6 +326,7 @@
         const searchBox = document.getElementById('searchBox');
         const table = document.getElementById('dataTable');
         const moduleFilters = document.getElementById('moduleFilters');
+        const typeFilters = document.getElementById('typeFilters');
         let currentData = [];
         let allData = [];
         let currentSort = {
@@ -352,16 +339,31 @@
         const visibleRowsSpan = document.getElementById('visibleRows');
         const totalRowsSpan = document.getElementById('totalRows');
 
+
+        const columnOrder = [
+            'Identity_ObjectID',
+            'userPrincipalName',    // Ny kolumn
+            'Module',
+            'Target_Type', // Ny kolumn            
+            'Resource_FriendlyName',
+            'Target_Resource',            
+            'Permission_Name',
+            'Backup_DateTime'
+        ];
+
         const columnMapping = {
             'Identity_ObjectID': 'Identity ID',
+            'userPrincipalName': 'User Principal Name', // Ny mappning
             'Module': 'Module Type',
             'Backup_DateTime': 'Backup Time',
             'Target_Resource': 'Resource ID',
             'Resource_FriendlyName': 'Resource Name',
             'Permission_Name': 'Permission',
-            'Permission_Description': 'Description'
+            'Target_Type': 'Type',     // Ny mappning
+            'Parent_Resource_Name': 'Parent Resource Name'
         };
-    
+               
+
         // Funktion för att få unika modultyper
         function getUniqueModules(data) {
             return [...new Set(data.map(item => item.Module))].sort();
@@ -426,28 +428,51 @@
                 }
             });
         }
-    
+
+
+        // Uppdatera updateTable funktionen
         function updateTable(data) {
             currentData = data;
+            visibleRowsSpan.textContent = data.length;
+            totalRowsSpan.textContent = allData.length;
             
             if (data.length > 0) {
-                const headers = Object.keys(data[0]);
+                // Få alla tillgängliga kolumner
+                const availableColumns = Object.keys(data[0]);
+                console.log('Available columns:', availableColumns);
                 
-                table.querySelector('thead tr').innerHTML = headers.map(h => {
-                    const sortClass = currentSort.column === h 
-                        ? ` class="sort-${currentSort.direction}"` 
-                        : '';
-                    return `<th${sortClass} data-column="${h}">${columnMapping[h] || h}</th>`;
-                }).join('');
-    
-                table.querySelector('tbody').innerHTML = data.map(row => 
-                    `<tr>${headers.map(h => `<td>${row[h]}</td>`).join('')}</tr>`
+                // Skapa slutlig kolumnordning
+                const finalColumnOrder = columnOrder
+                    .filter(col => availableColumns.includes(col))
+                    .concat(availableColumns.filter(col => !columnOrder.includes(col)));
+                    
+                console.log('Final column order:', finalColumnOrder);
+                
+                // Uppdatera thead
+                const headerRow = table.querySelector('thead tr');
+                headerRow.innerHTML = ''; // Rensa befintliga headers
+                
+                finalColumnOrder.forEach(h => {
+                    const th = document.createElement('th');
+                    if (currentSort.column === h) {
+                        th.className = `sort-${currentSort.direction}`;
+                    }
+                    th.dataset.column = h;
+                    th.textContent = columnMapping[h] || h;
+                    headerRow.appendChild(th);
+                });
+
+                // Uppdatera tbody
+                const tbody = table.querySelector('tbody');
+                tbody.innerHTML = data.map(row => 
+                    `<tr>${finalColumnOrder.map(h => `<td>${row[h] || ''}</td>`).join('')}</tr>`
                 ).join('');
             } else {
-                // Rensa tbody men behåll thead
                 table.querySelector('tbody').innerHTML = '';
             }
         }
+        
+       
     
         // Händelselyssnare för sökning
         searchBox.addEventListener('input', filterData);
@@ -547,8 +572,11 @@
                 .map(cb => cb.value);
             const selectedPermissions = Array.from(permissionFilters.querySelectorAll('input[type="checkbox"]:checked'))
                 .map(cb => cb.value);
+            const selectedTypes = Array.from(typeFilters.querySelectorAll('input[type="checkbox"]:checked'))
+            .map(cb => cb.value);
 
-            if (selectedModules.length === 0 || selectedPermissions.length === 0) {
+
+            if (selectedModules.length === 0 || selectedPermissions.length === 0 || selectedTypes.length === 0) {
                 updateTable([]);
                 return;
             }
@@ -556,8 +584,9 @@
             const filteredData = allData.filter(item => {
                 const matchesModules = selectedModules.includes(item.Module);
                 const matchesPermissions = selectedPermissions.includes(item.Permission_Name);
+                const matchesTypes = selectedTypes.includes(item.Target_Type);
                 const matchesSearch = searchTerms.length === 0 || matchesSearchTerms(item, searchTerms);
-                return matchesModules && matchesPermissions && matchesSearch;
+                return matchesModules && matchesPermissions && matchesTypes && matchesSearch;
             });
 
             if (currentSort.column) {
@@ -589,39 +618,23 @@
             link.click();
         }
 
-        // Uppdaterad updateTable funktion
-        function updateTable(data) {
-            currentData = data;
-            visibleRowsSpan.textContent = data.length;
-            totalRowsSpan.textContent = allData.length;
-            
-            if (data.length > 0) {
-                const headers = Object.keys(data[0]);
-                
-                table.querySelector('thead tr').innerHTML = headers.map(h => {
-                    const sortClass = currentSort.column === h 
-                        ? ` class="sort-${currentSort.direction}"` 
-                        : '';
-                    return `<th${sortClass} data-column="${h}">${columnMapping[h] || h}</th>`;
-                }).join('');
-
-                table.querySelector('tbody').innerHTML = data.map(row => 
-                    `<tr>${headers.map(h => `<td>${row[h]}</td>`).join('')}</tr>`
-                ).join('');
-            } else {
-                table.querySelector('tbody').innerHTML = '';
-            }
-        }
-
         // Uppdaterad createFilters funktion
         function createFilters() {
             const uniqueModules = getUniqueModules(allData);
             const uniquePermissions = [...new Set(allData.map(item => item.Permission_Name))].sort();
+            const uniqueTypes = [...new Set(allData.map(item => item.Target_Type))].sort();
 
             moduleFilters.innerHTML = uniqueModules.map(module => `
                 <label class="module-checkbox">
                     <input type="checkbox" value="${module}" checked>
                     ${module}
+                </label>
+            `).join('');
+
+            typeFilters.innerHTML = uniqueTypes.map(type => `
+                <label class="module-checkbox">
+                    <input type="checkbox" value="${type}" checked>
+                    ${type}
                 </label>
             `).join('');
 
@@ -634,6 +647,10 @@
 
             moduleFilters.querySelectorAll('input[type="checkbox"]').forEach(cb => 
                 cb.addEventListener('change', filterData));
+
+            typeFilters.querySelectorAll('input[type="checkbox"]').forEach(cb =>
+                cb.addEventListener('change', filterData));
+
             permissionFilters.querySelectorAll('input[type="checkbox"]').forEach(cb => 
                 cb.addEventListener('change', filterData));
         }
