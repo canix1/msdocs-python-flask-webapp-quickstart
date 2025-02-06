@@ -10,7 +10,7 @@ app = Flask(__name__)
 # Azure Storage configuration
 STORAGE_ACCOUNT_NAME = os.environ.get('STORAGE_ACCOUNT_NAME')
 STORAGE_ACCOUNT_KEY = os.environ.get('STORAGE_ACCOUNT_KEY')
-TABLE_NAME = os.environ.get('TABLE_NAME', 'YourTableName')
+TABLE_NAME = os.environ.get('TABLE_NAME')
 
 # Create the credential object
 credential = AzureNamedKeyCredential(STORAGE_ACCOUNT_NAME, STORAGE_ACCOUNT_KEY)
