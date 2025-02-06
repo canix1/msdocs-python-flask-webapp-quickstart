@@ -13,8 +13,6 @@ STORAGE_ACCOUNT_NAME = os.environ.get('STORAGE_ACCOUNT_NAME')
 STORAGE_ACCOUNT_KEY = os.environ.get('STORAGE_ACCOUNT_KEY')
 TABLE_NAME = os.environ.get('TABLE_NAME', 'YourTableName')
 TABLE_NAME_2 = os.environ.get('TABLE_NAME_2', 'YourSecondTableName')
-TABLE_NAME_3 = os.environ.get('TABLE_NAME_3', 'YourThirdTableName')
-TABLE_NAME_4 = os.environ.get('TABLE_NAME_4', 'YourFourthTableName')
 
 # Create the credential object
 credential = AzureNamedKeyCredential(STORAGE_ACCOUNT_NAME, STORAGE_ACCOUNT_KEY)
