@@ -55,17 +55,20 @@ def index():
 def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'),
                              'favicon.ico', mimetype='image/vnd.microsoft.icon')
-
 @app.route('/search')
 def search():
     query = request.args.get('query', '').lower()
     table_name = request.args.get('table')
     
+    print(f"Search request received - table: {table_name}, query: {query}")
+    
     if not table_name:
+        print("No table name provided")
         return jsonify({"error": "Table name is required"}), 400
         
     try:
         data = get_table_data(table_name)
+        print(f"Retrieved {len(data)} records from table {table_name}")
         
         if query:
             filtered_data = [
@@ -73,6 +76,7 @@ def search():
                 if any(str(value).lower().find(query) != -1 
                       for value in item.values())
             ]
+            print(f"Filtered to {len(filtered_data)} records")
         else:
             filtered_data = data
             

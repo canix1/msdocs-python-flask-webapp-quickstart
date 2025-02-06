@@ -1,10 +1,6 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <div class="tab-container">
-        <button class="tab-button active" onclick="switchTable('{{ TABLE_NAME_1 }}')">Table 1</button>
-        <button class="tab-button" onclick="switchTable('{{ TABLE_NAME_2 }}')">Table 2</button>
-    </div>
     <title>CLOUD X-RAY</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
@@ -324,6 +320,11 @@
         <img src="{{ url_for('static', filename='cloudxray.webp') }}" alt="CloudXRay Logo" class="logo">
     </div>
 
+    <div class="tab-container">
+        <button class="tab-button active" onclick="switchTable('{{ TABLE_NAME_1 }}')">Table 1</button>
+        <button class="tab-button" onclick="switchTable('{{ TABLE_NAME_2 }}')">Table 2</button>
+    </div>
+
     <div class="stats-bar">
         <div class="stats">
             Showing <span id="visibleRows">0</span> of <span id="totalRows">0</span> entries
@@ -371,7 +372,6 @@
 
     <script>
 
-        const searchBox = document.getElementById('searchBox');
         const table = document.getElementById('dataTable');
         const moduleFilters = document.getElementById('moduleFilters');
         const typeFilters = document.getElementById('typeFilters');
@@ -444,7 +444,7 @@
             tables[tableName].container.classList.add('active');
 
             currentTable = tableName;
-            
+
             filterData();
         }
 
@@ -570,25 +570,29 @@
         // Händelselyssnare för sökning
         searchBox.addEventListener('input', filterData);
     
-        // Initial datahämtning
-        async function initialLoad() {
-            try {
-                // Load data for first table
-                const response1 = await fetch(`/search?table=${TABLE_NAME_1}`);
-                tables[TABLE_NAME_1].data = await response1.json();
-                
-                // Load data for second table
-                const response2 = await fetch(`/search?table=${TABLE_NAME_2}`);
-                tables[TABLE_NAME_2].data = await response2.json();
+        // Initial datahämtningasync function initialLoad() {
+    try {
+        // Load data for first table
+        console.log('Loading data for', TABLE_NAME_1);
+        const response1 = await fetch(`/search?table=${TABLE_NAME_1}`);
+        const data1 = await response1.json();
+        tables[TABLE_NAME_1].data = data1;
+        allData = data1;  // Set initial allData
+        
+        // Load data for second table
+        console.log('Loading data for', TABLE_NAME_2);
+        const response2 = await fetch(`/search?table=${TABLE_NAME_2}`);
+        tables[TABLE_NAME_2].data = await response2.json();
 
-                if (tables[TABLE_NAME_1].data.length > 0) {
-                    createFilters();
-                    updateTable(tables[TABLE_NAME_1].data);
-                }
-            } catch (error) {
-                console.error('Error loading data:', error);
-            }
+        if (tables[TABLE_NAME_1].data.length > 0) {
+            console.log('Creating filters and updating table');
+            createFilters();
+            updateTable(tables[TABLE_NAME_1].data);
         }
+    } catch (error) {
+        console.error('Error loading data:', error);
+    }
+}
     
         // Sorteringshantering
         table.querySelector('thead').addEventListener('click', (e) => {
