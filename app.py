@@ -2,15 +2,14 @@ import os
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from azure.data.tables import TableServiceClient
 from azure.core.credentials import AzureNamedKeyCredential
-import pandas as pd
-from datetime import datetime
 
 app = Flask(__name__)
 
 # Azure Storage configuration
 STORAGE_ACCOUNT_NAME = os.environ.get('STORAGE_ACCOUNT_NAME')
 STORAGE_ACCOUNT_KEY = os.environ.get('STORAGE_ACCOUNT_KEY')
-TABLE_NAME = os.environ.get('TABLE_NAME')
+TABLE_NAME_1 = os.environ.get('TABLE_NAME')
+TABLE_NAME_2 = os.environ.get('TABLE_NAME_2')  # New table name
 
 # Create the credential object
 credential = AzureNamedKeyCredential(STORAGE_ACCOUNT_NAME, STORAGE_ACCOUNT_KEY)
@@ -21,15 +20,11 @@ table_service = TableServiceClient(
     credential=credential
 )
 
-def get_table_data():
+def get_table_data(table_name):
     try:
-        # Get the table client
-        table_client = table_service.get_table_client(table_name=TABLE_NAME)
-        
-        # Query all entities
+        table_client = table_service.get_table_client(table_name=table_name)
         entities = list(table_client.list_entities())
         
-        # Convert entities to a list of dictionaries
         data = []
         for entity in entities:
             item = {
@@ -46,7 +41,7 @@ def get_table_data():
         
         return data
     except Exception as e:
-        print(f"Error retrieving data from Azure Table: {str(e)}")
+        print(f"Error retrieving data from Azure Table {table_name}: {str(e)}")
         return []
 
 @app.route('/')
@@ -62,13 +57,12 @@ def favicon():
 @app.route('/search')
 def search():
     query = request.args.get('query', '').lower()
+    table = request.args.get('table', TABLE_NAME_1)  # Default to first table
     
     try:
-        # Get data from Azure Table Storage
-        data = get_table_data()
+        data = get_table_data(table)
         
         if query:
-            # Filter data based on query
             filtered_data = [
                 item for item in data
                 if any(str(value).lower().find(query) != -1 

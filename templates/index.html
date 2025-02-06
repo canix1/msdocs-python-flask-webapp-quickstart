@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <div class="tab-container">
+        <button class="tab-button active" onclick="switchTable('table1')">Table 1</button>
+        <button class="tab-button" onclick="switchTable('table2')">Table 2</button>
+    </div>
     <title>CLOUD X-RAY</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
@@ -275,7 +279,43 @@
             }
         }
 
-        /* Tidigare table styles behålls... */
+        .tab-container {
+            background-color: #162447;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .tab-button {
+            background-color: #1a1a2e;
+            color: #4ecca3;
+            border: 2px solid #4ecca3;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .tab-button.active {
+            background-color: #4ecca3;
+            color: #1a1a2e;
+        }
+
+        .tab-button:hover {
+            background-color: #45b08c;
+            color: #1a1a2e;
+        }
+
+        .table-container {
+            display: none;
+        }
+
+        .table-container.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -315,10 +355,18 @@
     </div>
 
     <div id="results">
-        <table id="dataTable">
-            <thead><tr></tr></thead>
-            <tbody></tbody>
-        </table>
+        <div id="table1Container" class="table-container active">
+            <table id="dataTable1">
+                <thead><tr></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div id="table2Container" class="table-container">
+            <table id="dataTable2">
+                <thead><tr></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
     </div>
 
     <script>
@@ -338,7 +386,20 @@
         const exportBtn = document.getElementById('exportBtn');
         const visibleRowsSpan = document.getElementById('visibleRows');
         const totalRowsSpan = document.getElementById('totalRows');
-
+        
+        let currentTable = 'table1';
+        const tables = {
+            table1: {
+                container: document.getElementById('table1Container'),
+                table: document.getElementById('dataTable1'),
+                data: []
+            },
+            table2: {
+                container: document.getElementById('table2Container'),
+                table: document.getElementById('dataTable2'),
+                data: []
+            }
+        };
 
         const columnOrder = [
             'Identity_ObjectID',
@@ -363,6 +424,25 @@
             'Parent_Resource_Name': 'Parent Resource Name'
         };
                
+        function switchTable(tableName) {
+            // Update active states
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+                if(btn.textContent.toLowerCase().includes(tableName)) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Hide all containers and show the selected one
+            document.querySelectorAll('.table-container').forEach(container => {
+                container.classList.remove('active');
+            });
+            tables[tableName].container.classList.add('active');
+
+            currentTable = tableName;
+            // Refresh data for the selected table
+            filterData();
+        }
 
         // Funktion för att få unika modultyper
         function getUniqueModules(data) {
@@ -432,6 +512,15 @@
 
         // Uppdatera updateTable funktionen
         function updateTable(data) {
+
+            const currentTableObj = tables[currentTable];
+            currentTableObj.data = data;
+            
+            visibleRowsSpan.textContent = data.length;
+            totalRowsSpan.textContent = currentTableObj.data.length;
+            
+            const table = currentTableObj.table;
+            
             currentData = data;
             visibleRowsSpan.textContent = data.length;
             totalRowsSpan.textContent = allData.length;
@@ -479,14 +568,17 @@
     
         // Initial datahämtning
         async function initialLoad() {
-            const response = await fetch(`/search?query=`);
-            allData = await response.json();
-            currentData = allData;
+            // Load data for first table
+            const response1 = await fetch(`/search?query=&table=table1`);
+            tables.table1.data = await response1.json();
             
-            if (allData.length > 0) {
-                const uniqueModules = getUniqueModules(allData);
-                createModuleFilters(uniqueModules);
-                updateTable(allData);
+            // Load data for second table
+            const response2 = await fetch(`/search?query=&table=table2`);
+            tables.table2.data = await response2.json();
+
+            if (tables.table1.data.length > 0) {
+                createFilters();
+                updateTable(tables.table1.data);
             }
         }
     
@@ -566,27 +658,17 @@
         }
 
         // Uppdaterad filterData funktion
-        function filterData() {
-            const searchTerms = parseSearchQuery(searchBox.value);
+        async function filterData() {
+            const searchText = searchBox.value.toLowerCase();
             const selectedModules = Array.from(moduleFilters.querySelectorAll('input[type="checkbox"]:checked'))
                 .map(cb => cb.value);
-            const selectedPermissions = Array.from(permissionFilters.querySelectorAll('input[type="checkbox"]:checked'))
-                .map(cb => cb.value);
-            const selectedTypes = Array.from(typeFilters.querySelectorAll('input[type="checkbox"]:checked'))
-            .map(cb => cb.value);
 
-
-            if (selectedModules.length === 0 || selectedPermissions.length === 0 || selectedTypes.length === 0) {
-                updateTable([]);
-                return;
-            }
-
-            const filteredData = allData.filter(item => {
-                const matchesModules = selectedModules.includes(item.Module);
-                const matchesPermissions = selectedPermissions.includes(item.Permission_Name);
-                const matchesTypes = selectedTypes.includes(item.Target_Type);
-                const matchesSearch = searchTerms.length === 0 || matchesSearchTerms(item, searchTerms);
-                return matchesModules && matchesPermissions && matchesTypes && matchesSearch;
+            const response = await fetch(`/search?query=${searchText}&table=${currentTable}`);
+            const data = await response.json();
+            
+            const filteredData = data.filter(item => {
+                const matchesModule = selectedModules.includes(item.Module);
+                return matchesModule;
             });
 
             if (currentSort.column) {
