@@ -2,8 +2,8 @@
 <html>
 <head>
     <div class="tab-container">
-        <button class="tab-button active" onclick="switchTable('table1')">Table 1</button>
-        <button class="tab-button" onclick="switchTable('table2')">Table 2</button>
+        <button class="tab-button active" onclick="switchTable('{{ TABLE_NAME_1 }}')">Table 1</button>
+        <button class="tab-button" onclick="switchTable('{{ TABLE_NAME_2 }}')">Table 2</button>
     </div>
     <title>CLOUD X-RAY</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -355,14 +355,14 @@
     </div>
 
     <div id="results">
-        <div id="table1Container" class="table-container active">
-            <table id="dataTable1">
+        <div id="{{ TABLE_NAME_1 }}Container" class="table-container active">
+            <table id="{{ TABLE_NAME_1 }}Table">
                 <thead><tr></tr></thead>
                 <tbody></tbody>
             </table>
         </div>
-        <div id="table2Container" class="table-container">
-            <table id="dataTable2">
+        <div id="{{ TABLE_NAME_2 }}Container" class="table-container">
+            <table id="{{ TABLE_NAME_2 }}Table">
                 <thead><tr></tr></thead>
                 <tbody></tbody>
             </table>
@@ -387,16 +387,20 @@
         const visibleRowsSpan = document.getElementById('visibleRows');
         const totalRowsSpan = document.getElementById('totalRows');
         
-        let currentTable = 'table1';
+        // Get table names from server-side
+        const TABLE_NAME_1 = '{{ TABLE_NAME_1 }}';
+        const TABLE_NAME_2 = '{{ TABLE_NAME_2 }}';
+        
+        let currentTable = TABLE_NAME_1;
         const tables = {
-            table1: {
-                container: document.getElementById('table1Container'),
-                table: document.getElementById('dataTable1'),
+            [TABLE_NAME_1]: {
+                container: document.getElementById(`${TABLE_NAME_1}Container`),
+                table: document.getElementById(`${TABLE_NAME_1}Table`),
                 data: []
             },
-            table2: {
-                container: document.getElementById('table2Container'),
-                table: document.getElementById('dataTable2'),
+            [TABLE_NAME_2]: {
+                container: document.getElementById(`${TABLE_NAME_2}Container`),
+                table: document.getElementById(`${TABLE_NAME_2}Table`),
                 data: []
             }
         };
@@ -428,7 +432,7 @@
             // Update active states
             document.querySelectorAll('.tab-button').forEach(btn => {
                 btn.classList.remove('active');
-                if(btn.textContent.toLowerCase().includes(tableName)) {
+                if(btn === event.target) {
                     btn.classList.add('active');
                 }
             });
@@ -440,7 +444,7 @@
             tables[tableName].container.classList.add('active');
 
             currentTable = tableName;
-            // Refresh data for the selected table
+            
             filterData();
         }
 
@@ -568,17 +572,21 @@
     
         // Initial datahämtning
         async function initialLoad() {
-            // Load data for first table
-            const response1 = await fetch(`/search?query=&table=table1`);
-            tables.table1.data = await response1.json();
-            
-            // Load data for second table
-            const response2 = await fetch(`/search?query=&table=table2`);
-            tables.table2.data = await response2.json();
+            try {
+                // Load data for first table
+                const response1 = await fetch(`/search?table=${TABLE_NAME_1}`);
+                tables[TABLE_NAME_1].data = await response1.json();
+                
+                // Load data for second table
+                const response2 = await fetch(`/search?table=${TABLE_NAME_2}`);
+                tables[TABLE_NAME_2].data = await response2.json();
 
-            if (tables.table1.data.length > 0) {
-                createFilters();
-                updateTable(tables.table1.data);
+                if (tables[TABLE_NAME_1].data.length > 0) {
+                    createFilters();
+                    updateTable(tables[TABLE_NAME_1].data);
+                }
+            } catch (error) {
+                console.error('Error loading data:', error);
             }
         }
     
@@ -663,18 +671,22 @@
             const selectedModules = Array.from(moduleFilters.querySelectorAll('input[type="checkbox"]:checked'))
                 .map(cb => cb.value);
 
-            const response = await fetch(`/search?query=${searchText}&table=${currentTable}`);
-            const data = await response.json();
-            
-            const filteredData = data.filter(item => {
-                const matchesModule = selectedModules.includes(item.Module);
-                return matchesModule;
-            });
+            try {
+                const response = await fetch(`/search?query=${searchText}&table=${currentTable}`);
+                const data = await response.json();
+                
+                const filteredData = data.filter(item => {
+                    const matchesModule = selectedModules.includes(item.Module);
+                    return matchesModule;
+                });
 
-            if (currentSort.column) {
-                updateTable(sortData(filteredData, currentSort.column, currentSort.direction));
-            } else {
-                updateTable(filteredData);
+                if (currentSort.column) {
+                    updateTable(sortData(filteredData, currentSort.column, currentSort.direction));
+                } else {
+                    updateTable(filteredData);
+                }
+            } catch (error) {
+                console.error('Error filtering data:', error);
             }
         }
 

@@ -1,3 +1,4 @@
+# app.py
 import os
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from azure.data.tables import TableServiceClient
@@ -9,7 +10,7 @@ app = Flask(__name__)
 STORAGE_ACCOUNT_NAME = os.environ.get('STORAGE_ACCOUNT_NAME')
 STORAGE_ACCOUNT_KEY = os.environ.get('STORAGE_ACCOUNT_KEY')
 TABLE_NAME_1 = os.environ.get('TABLE_NAME')
-TABLE_NAME_2 = os.environ.get('TABLE_NAME_2')  # New table name
+TABLE_NAME_2 = os.environ.get('TABLE_NAME_2')
 
 # Create the credential object
 credential = AzureNamedKeyCredential(STORAGE_ACCOUNT_NAME, STORAGE_ACCOUNT_KEY)
@@ -46,8 +47,9 @@ def get_table_data(table_name):
 
 @app.route('/')
 def index():
-    print('Request for index page received')
-    return render_template('index.html')
+    return render_template('index.html', 
+                         TABLE_NAME_1=TABLE_NAME_1, 
+                         TABLE_NAME_2=TABLE_NAME_2)
 
 @app.route('/favicon.ico')
 def favicon():
@@ -57,10 +59,13 @@ def favicon():
 @app.route('/search')
 def search():
     query = request.args.get('query', '').lower()
-    table = request.args.get('table', TABLE_NAME_1)  # Default to first table
+    table_name = request.args.get('table')
     
+    if not table_name:
+        return jsonify({"error": "Table name is required"}), 400
+        
     try:
-        data = get_table_data(table)
+        data = get_table_data(table_name)
         
         if query:
             filtered_data = [
