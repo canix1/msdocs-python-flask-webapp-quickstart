@@ -1,20 +1,17 @@
-# app.py
 import os
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from azure.data.tables import TableServiceClient
 from azure.core.credentials import AzureNamedKeyCredential
-import pandas as pd
-from datetime import datetime
 
 app = Flask(__name__)
 
 # Azure Storage configuration
 STORAGE_ACCOUNT_NAME = os.environ.get('STORAGE_ACCOUNT_NAME')
 STORAGE_ACCOUNT_KEY = os.environ.get('STORAGE_ACCOUNT_KEY')
-TABLE_NAME = os.environ.get('TABLE_NAME', 'YourTableName')
-TABLE_NAME_2 = os.environ.get('TABLE_NAME_2', 'YourSecondTableName')
-TABLE_NAME_3 = os.environ.get('TABLE_NAME_3', 'YourThirdTableName')
-TABLE_NAME_4 = os.environ.get('TABLE_NAME_4', 'YourFourthTableName')
+TABLE_NAME = os.environ.get('TABLE_NAME')
+TABLE_NAME_2 = os.environ.get('TABLE_NAME_2')
+TABLE_NAME_3 = os.environ.get('TABLE_NAME_3')
+TABLE_NAME_4 = os.environ.get('TABLE_NAME_4')
 
 # Create the credential object
 credential = AzureNamedKeyCredential(STORAGE_ACCOUNT_NAME, STORAGE_ACCOUNT_KEY)
@@ -25,12 +22,57 @@ table_service = TableServiceClient(
     credential=credential
 )
 
-def get_table_data(table_name):
+def query_table_data(table_name, search_query=None, filters=None):
     try:
-        print(f"Fetching data from table: {table_name}")
+        print(f"Querying table {table_name} with search: {search_query}")
         table_client = table_service.get_table_client(table_name=table_name)
-        entities = list(table_client.list_entities())
         
+        filter_conditions = []
+        
+        if search_query and search_query.strip():
+            search_fields = [
+                'Identity_ObjectID', 'userPrincipalName', 'Module', 
+                'Target_Type', 'Resource_FriendlyName', 'Target_Resource', 
+                'Permission_Name'
+            ]
+            
+            field_conditions = []
+            safe_query = search_query.replace("'", "''")
+            
+            for field in search_fields:
+                if field == 'userPrincipalName':
+                    # Exact match for userPrincipalName
+                    field_conditions.append(f"{field} eq '{safe_query}'")
+                else:
+                    # Contains simulation for other fields
+                    field_conditions.append(f"{field} eq '{safe_query}'")
+            
+            if field_conditions:
+                filter_conditions.append(f"({' or '.join(field_conditions)})")
+        
+        if filters:
+            for field, value in filters.items():
+                if isinstance(value, list):
+                    # Handle list of values
+                    valid_values = []
+                    for val in value:
+                        if val and str(val).strip():
+                            safe_val = str(val).replace("'", "''")
+                            valid_values.append(f"{field} eq '{safe_val}'")
+                    if valid_values:
+                        filter_conditions.append(f"({' or '.join(valid_values)})")
+                elif value and str(value).strip():
+                    # Handle single value
+                    safe_value = str(value).replace("'", "''")
+                    filter_conditions.append(f"{field} eq '{safe_value}'")
+
+        filter_string = ' and '.join(filter_conditions) if filter_conditions else None
+        print(f"Final filter string: {filter_string}")
+        
+        # Query the table
+        entities = list(table_client.query_entities(filter_string)) if filter_string else list(table_client.list_entities())
+        
+        # Convert entities to dictionaries
         data = []
         for entity in entities:
             item = {
@@ -42,19 +84,20 @@ def get_table_data(table_name):
                 'Target_Resource': entity.get('Target_Resource', ''),
                 'Permission_Name': entity.get('Permission_Name', ''),
                 'Backup_DateTime': entity.get('Backup_DateTime', ''),
-                'Source_Table': table_name  # Add source table information
+                'Source_Table': table_name
             }
             data.append(item)
         
         print(f"Retrieved {len(data)} records from {table_name}")
         return data
+        
     except Exception as e:
-        print(f"Error retrieving data from Azure Table {table_name}: {str(e)}")
+        print(f"Error querying Azure Table {table_name}: {str(e)}")
         return []
+
 
 @app.route('/')
 def index():
-    print('Request for index page received')
     return render_template('index.html')
 
 @app.route('/favicon.ico')
@@ -64,33 +107,42 @@ def favicon():
 
 @app.route('/search')
 def search():
-    query = request.args.get('query', '').lower()
-    
     try:
-        # Get data from both Azure Tables
-        data1 = get_table_data(TABLE_NAME)
-        data2 = get_table_data(TABLE_NAME_2)
+        query = request.args.get('query', '')
+        module_filter = request.args.getlist('modules[]')
+        permission_filter = request.args.getlist('permissions[]')
+        type_filter = request.args.getlist('types[]')
         
-        # Combine the data
-        combined_data = data1 + data2
-        print(f"Combined data count: {len(combined_data)}")
-        
-        if query:
-            # Filter combined data based on query
-            filtered_data = [
-                item for item in combined_data
-                if any(str(value).lower().find(query) != -1 
-                      for value in item.values())
-            ]
-            print(f"Filtered to {len(filtered_data)} records")
-        else:
-            filtered_data = combined_data
+        filters = {}
+        if module_filter:
+            filters['Module'] = module_filter
+        if permission_filter:
+            filters['Permission_Name'] = permission_filter
+        if type_filter:
+            filters['Target_Type'] = type_filter
             
-        return jsonify(filtered_data)
+        # Define all your table names
+        table_names = [
+            TABLE_NAME,
+            TABLE_NAME_2,
+            TABLE_NAME_3,
+            TABLE_NAME_4
+        ]
+        
+        # Query all tables and combine results
+        all_data = []
+        for table_name in table_names:
+            if table_name:  # Only query if table name exists
+                table_data = query_table_data(table_name, query, filters)
+                all_data.extend(table_data)
+        
+        print(f"Total combined records from all tables: {len(all_data)}")
+        
+        return jsonify(all_data)
         
     except Exception as e:
         print(f"Error in search: {str(e)}")
-        return jsonify([])
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

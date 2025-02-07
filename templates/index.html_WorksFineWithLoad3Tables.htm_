@@ -275,22 +275,7 @@
             }
         }
 
-        .unselect-btn {
-            background-color: #1f4068;
-            color: #4ecca3;
-            border: 1px solid #4ecca3;
-            padding: 4px 8px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.9em;
-            margin-bottom: 8px;
-            transition: all 0.3s ease;
-        }
-
-        .unselect-btn:hover {
-            background-color: #4ecca3;
-            color: #1f4068;
-        }
+        /* Tidigare table styles behålls... */
     </style>
 </head>
 <body>
@@ -317,17 +302,14 @@
     <div class="filters-container">
         <div class="filter-section">
             <label class="filter-label">Module:</label>
-            <button class="unselect-btn" id="unselectModules">Unselect All</button>
             <div id="moduleFilters" class="multiselect-container"></div>
         </div>
         <div class="filter-section">
             <label class="filter-label">Type:</label>
-            <button class="unselect-btn" id="unselectTypes">Unselect All</button>
             <div id="typeFilters" class="multiselect-container"></div>
         </div>        
         <div class="filter-section">
             <label class="filter-label">Permissions:</label>
-            <button class="unselect-btn" id="unselectPermissions">Unselect All</button>
             <div id="permissionFilters" class="multiselect-container"></div>
         </div>
     </div>
@@ -380,40 +362,7 @@
             'Target_Type': 'Type',     // Ny mappning
             'Parent_Resource_Name': 'Parent Resource Name'
         };
-
-        // Add unselect button functionality
-        document.getElementById('unselectModules').addEventListener('click', () => {
-            moduleFilters.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-                cb.checked = false;
-            });
-            filterData();
-        });
-
-        document.getElementById('unselectTypes').addEventListener('click', () => {
-            typeFilters.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-                cb.checked = false;
-            });
-            filterData();
-        });
-
-        document.getElementById('unselectPermissions').addEventListener('click', () => {
-            permissionFilters.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-                cb.checked = false;
-            });
-            filterData();
-        });        
                
-        function debounce(func, wait) {
-            let timeout;
-            return function executedFunction(...args) {
-                const later = () => {
-                    clearTimeout(timeout);
-                    func(...args);
-                };
-                clearTimeout(timeout);
-                timeout = setTimeout(later, wait);
-            };
-        }
 
         // Funktion för att få unika modultyper
         function getUniqueModules(data) {
@@ -434,40 +383,31 @@
             });
         }
     
-        // Replace your existing filterData function with this:
-        async function filterData() {
+        // Uppdaterad filterData funktion
+        function filterData() {
             const searchText = searchBox.value.toLowerCase();
             const selectedModules = Array.from(moduleFilters.querySelectorAll('input[type="checkbox"]:checked'))
                 .map(cb => cb.value);
-            const selectedPermissions = Array.from(permissionFilters.querySelectorAll('input[type="checkbox"]:checked'))
-                .map(cb => cb.value);
-            const selectedTypes = Array.from(typeFilters.querySelectorAll('input[type="checkbox"]:checked'))
-                .map(cb => cb.value);
-
-            try {
-                table.querySelector('tbody').innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
-        
-                // Build query parameters
-                const params = new URLSearchParams();
-                if (searchText) params.append('query', searchText);
-                selectedModules.forEach(module => params.append('modules[]', module));
-                selectedPermissions.forEach(perm => params.append('permissions[]', perm));
-                selectedTypes.forEach(type => params.append('types[]', type));
-
-                // Fetch filtered data from server
-                const response = await fetch(`/search?${params.toString()}`);
-                const data = await response.json();
-
-                // Update the table with the filtered data
-                if (currentSort.column) {
-                    updateTable(sortData(data, currentSort.column, currentSort.direction));
-                } else {
-                    updateTable(data);
-                }
-            } catch (error) {
-                table.querySelector('tbody').innerHTML = 
-                    '<tr><td colspan="8">Error loading data. Please try again.</td></tr>';
-                console.error('Error:', error);
+    
+            // Kontrollera om några moduler är valda
+            if (selectedModules.length === 0) {
+                // Om inga moduler är valda, rensa tabellen
+                table.querySelector('tbody').innerHTML = '';
+                return;
+            }
+    
+            const filteredData = allData.filter(item => {
+                const matchesSearch = Object.values(item).some(value => 
+                    String(value).toLowerCase().includes(searchText)
+                );
+                const matchesModule = selectedModules.includes(item.Module);
+                return matchesSearch && matchesModule;
+            });
+    
+            if (currentSort.column) {
+                updateTable(sortData(filteredData, currentSort.column, currentSort.direction));
+            } else {
+                updateTable(filteredData);
             }
         }
     
@@ -535,10 +475,21 @@
        
     
         // Händelselyssnare för sökning
-        searchBox.addEventListener('input', debounce(filterData, 300));
-
-        // Modify initialLoad to just get initial data and set up filters
-
+        searchBox.addEventListener('input', filterData);
+    
+        // Initial datahämtning
+        async function initialLoad() {
+            const response = await fetch(`/search?query=`);
+            allData = await response.json();
+            currentData = allData;
+            
+            if (allData.length > 0) {
+                const uniqueModules = getUniqueModules(allData);
+                createModuleFilters(uniqueModules);
+                updateTable(allData);
+            }
+        }
+    
         // Sorteringshantering
         table.querySelector('thead').addEventListener('click', (e) => {
             const th = e.target.closest('th');
@@ -554,7 +505,9 @@
             currentSort = { column, direction };
             filterData(); // Använd filterData istället för att sortera direkt
         });
-
+    
+        // Starta initial laddning
+        initialLoad();
 
         // Uppdaterad söklogik för avancerad sökning
         function parseSearchQuery(query) {
@@ -613,37 +566,36 @@
         }
 
         // Uppdaterad filterData funktion
-        async function filterData() {
-            const searchText = searchBox.value.toLowerCase();
+        function filterData() {
+            const searchTerms = parseSearchQuery(searchBox.value);
             const selectedModules = Array.from(moduleFilters.querySelectorAll('input[type="checkbox"]:checked'))
                 .map(cb => cb.value);
             const selectedPermissions = Array.from(permissionFilters.querySelectorAll('input[type="checkbox"]:checked'))
                 .map(cb => cb.value);
             const selectedTypes = Array.from(typeFilters.querySelectorAll('input[type="checkbox"]:checked'))
-                .map(cb => cb.value);
+            .map(cb => cb.value);
 
-            try {
-                // Build query parameters
-                const params = new URLSearchParams();
-                if (searchText) params.append('query', searchText);
-                selectedModules.forEach(module => params.append('modules[]', module));
-                selectedPermissions.forEach(perm => params.append('permissions[]', perm));
-                selectedTypes.forEach(type => params.append('types[]', type));
 
-                // Fetch filtered data from server
-                const response = await fetch(`/search?${params.toString()}`);
-                const data = await response.json();
+            if (selectedModules.length === 0 || selectedPermissions.length === 0 || selectedTypes.length === 0) {
+                updateTable([]);
+                return;
+            }
 
-                // Update the table with the filtered data
-                if (currentSort.column) {
-                    updateTable(sortData(data, currentSort.column, currentSort.direction));
-                } else {
-                    updateTable(data);
-                }
-            } catch (error) {
-                console.error('Error filtering data:', error);
+            const filteredData = allData.filter(item => {
+                const matchesModules = selectedModules.includes(item.Module);
+                const matchesPermissions = selectedPermissions.includes(item.Permission_Name);
+                const matchesTypes = selectedTypes.includes(item.Target_Type);
+                const matchesSearch = searchTerms.length === 0 || matchesSearchTerms(item, searchTerms);
+                return matchesModules && matchesPermissions && matchesTypes && matchesSearch;
+            });
+
+            if (currentSort.column) {
+                updateTable(sortData(filteredData, currentSort.column, currentSort.direction));
+            } else {
+                updateTable(filteredData);
             }
         }
+
         // Funktion för att exportera till CSV
         function exportToCSV() {
             if (currentData.length === 0) return;
@@ -707,28 +659,15 @@
         searchBox.addEventListener('input', filterData);
         exportBtn.addEventListener('click', exportToCSV);
 
-        // Modify initialLoad to just get initial data and set up filters
+        // Uppdaterad initialLoad
         async function initialLoad() {
-            try {
-                // Get initial data with no filters
-                const response = await fetch('/search');
-                const data = await response.json();
-                
-                if (data.length > 0) {
-                    allData = data;  // Set the allData variable
-                    // Create filters based on the initial data
-                    const uniqueModules = [...new Set(data.map(item => item.Module))].sort();
-                    const uniquePermissions = [...new Set(data.map(item => item.Permission_Name))].sort();
-                    const uniqueTypes = [...new Set(data.map(item => item.Target_Type))].sort();
-
-                    // Set up filter checkboxes
-                    createFilters();  // Pass the data arrays
-                    
-                    // Display the data
-                    updateTable(data);
-                }
-            } catch (error) {
-                console.error('Error loading initial data:', error);
+            const response = await fetch(`/search?query=`);
+            allData = await response.json();
+            currentData = allData;
+            
+            if (allData.length > 0) {
+                createFilters();
+                updateTable(allData);
             }
         }
 
