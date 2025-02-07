@@ -662,29 +662,6 @@
                 console.error('Error filtering data:', error);
             }
         }
-
-        // Funktion för att exportera till CSV
-        function recoveryData() {
-            if (currentData.length === 0) return;
-
-            const headers = Object.keys(currentData[0]);
-            const csvContent = [
-                headers.join(','),
-                ...currentData.map(row => 
-                    headers.map(header => {
-                        const cell = row[header].toString();
-                        return cell.includes(',') ? `"${cell}"` : cell;
-                    }).join(',')
-                )
-            ].join('\n');
-
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'teams_permissions_export.csv';
-            link.click();
-        }
-
         // Funktion för att exportera till CSV
         function exportToCSV() {
             if (currentData.length === 0) return;

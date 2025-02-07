@@ -12,6 +12,7 @@ TABLE_NAME = os.environ.get('TABLE_NAME')
 TABLE_NAME_2 = os.environ.get('TABLE_NAME_2')
 TABLE_NAME_3 = os.environ.get('TABLE_NAME_3')
 TABLE_NAME_4 = os.environ.get('TABLE_NAME_4')
+TABLE_NAME_5 = os.environ.get('TABLE_NAME_5')
 
 # Create the credential object
 credential = AzureNamedKeyCredential(STORAGE_ACCOUNT_NAME, STORAGE_ACCOUNT_KEY)
@@ -126,7 +127,8 @@ def search():
             TABLE_NAME,
             TABLE_NAME_2,
             TABLE_NAME_3,
-            TABLE_NAME_4
+            TABLE_NAME_4,
+            TABLE_NAME_5            
         ]
         
         # Query all tables and combine results
